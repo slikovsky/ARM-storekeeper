@@ -121,11 +121,10 @@
         </Border>
 
         <!-- Основной контент -->
-        <ScrollViewer Grid.Column="1" 
-                      VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled"
-                      Margin="20">
+        <Border Grid.Column="1" 
+                Margin="20"
+                Background="Transparent">
             <ContentControl Content="{Binding CurrentView}"/>
-        </ScrollViewer>
+        </Border>
     </Grid>
 </Window>
