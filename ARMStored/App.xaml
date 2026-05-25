@@ -4,9 +4,9 @@
              Startup="OnStartup">
     <Application.Resources>
         <ResourceDictionary>
-            <!-- Конвертеры -->
+            <!-- Базовые конвертеры -->
             <BooleanToVisibilityConverter x:Key="BoolToVis" />
-            
+
             <!-- Стили кнопок -->
             <Style x:Key="PrimaryButton" TargetType="Button">
                 <Setter Property="Background" Value="#FF2196F3"/>
@@ -31,7 +31,7 @@
                     </Trigger>
                 </Style.Triggers>
             </Style>
-            
+
             <!-- Стили текстовых полей -->
             <Style x:Key="ModernTextBox" TargetType="TextBox">
                 <Setter Property="Padding" Value="10,8"/>

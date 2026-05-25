@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using ARMStored.Models;
 using ARMStored.Services;
+using ARMStored.Views;
 
 namespace ARMStored.ViewModels;
 
@@ -13,7 +14,6 @@ public class ProductsViewModel : BaseViewModel
     private ObservableCollection<Supplier> _suppliers = new();
     private Product? _selectedProduct;
     private string _searchText = string.Empty;
-    private bool _isEditing;
 
     public ObservableCollection<Product> Products
     {
@@ -36,11 +36,7 @@ public class ProductsViewModel : BaseViewModel
     public Product? SelectedProduct
     {
         get => _selectedProduct;
-        set
-        {
-            SetProperty(ref _selectedProduct, value);
-            IsEditing = value != null;
-        }
+        set => SetProperty(ref _selectedProduct, value);
     }
 
     public string SearchText
@@ -53,19 +49,11 @@ public class ProductsViewModel : BaseViewModel
         }
     }
 
-    public bool IsEditing
-    {
-        get => _isEditing;
-        set => SetProperty(ref _isEditing, value);
-    }
-
     public bool IsAdmin => AuthService.IsAdmin;
 
     public ICommand AddCommand { get; }
     public ICommand EditCommand { get; }
-    public ICommand SaveCommand { get; }
     public ICommand DeleteCommand { get; }
-    public ICommand CancelCommand { get; }
     public ICommand RefreshCommand { get; }
 
     private readonly DatabaseService _dbService;
@@ -75,11 +63,9 @@ public class ProductsViewModel : BaseViewModel
     {
         _dbService = dbService;
 
-        AddCommand = new RelayCommand(_ => ExecuteAdd());
+        AddCommand = new RelayCommand(_ => ExecuteAdd(), _ => IsAdmin);
         EditCommand = new RelayCommand(_ => ExecuteEdit(), _ => SelectedProduct != null);
-        SaveCommand = new RelayCommand(_ => ExecuteSave(), _ => CanSave());  // ← ИСПРАВЛЕНО: без параметра
-        DeleteCommand = new RelayCommand(_ => ExecuteDelete(_), _ => SelectedProduct != null && IsAdmin);
-        CancelCommand = new RelayCommand(_ => ExecuteCancel());
+        DeleteCommand = new RelayCommand(_ => ExecuteDelete(), _ => SelectedProduct != null && IsAdmin);
         RefreshCommand = new RelayCommand(_ => LoadData());
 
         LoadData();
@@ -102,7 +88,7 @@ public class ProductsViewModel : BaseViewModel
         }
         else
         {
-            var filtered = _allProducts.Where(p =>
+            var filtered = _allProducts.Where(p => 
                 p.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
                 (p.Article?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (p.Barcode?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
@@ -114,7 +100,7 @@ public class ProductsViewModel : BaseViewModel
 
     private void ExecuteAdd()
     {
-        SelectedProduct = new Product
+        var newProduct = new Product
         {
             CategoryId = Categories.FirstOrDefault()?.Id ?? 0,
             SupplierId = Suppliers.FirstOrDefault()?.Id ?? 0,
@@ -123,62 +109,88 @@ public class ProductsViewModel : BaseViewModel
             CreatedAt = DateTime.Now,
             UpdatedAt = DateTime.Now
         };
-        IsEditing = true;
-    }
 
-    private void ExecuteEdit() { }
+        var dialog = new ProductDialog(newProduct, Categories.ToList(), Suppliers.ToList());
+        dialog.Owner = Application.Current.MainWindow;
 
-    private bool CanSave()
-    {
-        return SelectedProduct != null &&
-               !string.IsNullOrWhiteSpace(SelectedProduct.Name) &&
-               SelectedProduct.Price >= 0 &&
-               SelectedProduct.Quantity >= 0;
-    }
-
-    private void ExecuteSave()  // ← ИСПРАВЛЕНО: убран параметр object?
-    {
-        try
-        {
-            if (SelectedProduct!.Id == 0)
-            {
-                _dbService.AddProduct(SelectedProduct);
-                MessageBox.Show("✅ Товар успешно добавлен!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            else
-            {
-                _dbService.UpdateProduct(SelectedProduct);
-                MessageBox.Show("✅ Товар успешно обновлён!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            LoadData();
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"❌ Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private void ExecuteDelete(object? obj)  // ← Оставлен параметр для совместимости
-    {
-        if (MessageBox.Show($"Удалить товар '{SelectedProduct?.Name}'?", "Подтверждение",
-            MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+        if (dialog.ShowDialog() == true)
         {
             try
             {
-                _dbService.DeleteProduct(SelectedProduct!.Id);
-                MessageBox.Show("✅ Товар удалён!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                _dbService.AddProduct(dialog.Product);
+                MessageBox.Show("✅ Товар успешно добавлен!", "Успех", 
+                    MessageBoxButton.OK, MessageBoxImage.Information);
                 LoadData();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"❌ Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"❌ Ошибка: {ex.Message}", "Ошибка", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }
 
-    private void ExecuteCancel()
+    private void ExecuteEdit()
     {
-        SelectedProduct = null;
-        LoadData();
+        if (SelectedProduct == null) return;
+
+        // Создаём копию для редактирования
+        var editProduct = new Product
+        {
+            Id = SelectedProduct.Id,
+            Name = SelectedProduct.Name,
+            Article = SelectedProduct.Article,
+            Barcode = SelectedProduct.Barcode,
+            CategoryId = SelectedProduct.CategoryId,
+            SupplierId = SelectedProduct.SupplierId,
+            Price = SelectedProduct.Price,
+            Quantity = SelectedProduct.Quantity,
+            MinQuantity = SelectedProduct.MinQuantity,
+            Unit = SelectedProduct.Unit,
+            Description = SelectedProduct.Description,
+            CreatedAt = SelectedProduct.CreatedAt,
+            UpdatedAt = SelectedProduct.UpdatedAt
+        };
+
+        var dialog = new ProductDialog(editProduct, Categories.ToList(), Suppliers.ToList());
+        dialog.Owner = Application.Current.MainWindow;
+
+        if (dialog.ShowDialog() == true)
+        {
+            try
+            {
+                _dbService.UpdateProduct(dialog.Product);
+                MessageBox.Show("✅ Товар успешно обновлён!", "Успех", 
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                LoadData();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"❌ Ошибка: {ex.Message}", "Ошибка", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    private void ExecuteDelete()
+    {
+        if (SelectedProduct == null) return;
+
+        if (MessageBox.Show($"Удалить товар '{SelectedProduct.Name}'?", "Подтверждение", 
+            MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+        {
+            try
+            {
+                _dbService.DeleteProduct(SelectedProduct.Id);
+                MessageBox.Show("✅ Товар удалён!", "Успех", 
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                LoadData();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"❌ Ошибка: {ex.Message}", "Ошибка", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
     }
 }

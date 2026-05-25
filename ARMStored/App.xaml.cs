@@ -23,7 +23,6 @@ public partial class App : Application
 
     private static void ConfigureServices(IServiceCollection services)
     {
-        // Конфигурация
         var configuration = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
@@ -34,12 +33,14 @@ public partial class App : Application
         // Сервисы
         services.AddSingleton<DatabaseService>();
         services.AddSingleton<AuthService>();
+        services.AddSingleton<ReportService>();
 
         // ViewModels
         services.AddTransient<LoginViewModel>();
         services.AddTransient<MainViewModel>();
         services.AddTransient<ProductsViewModel>();
         services.AddTransient<WarehouseOperationsViewModel>();
+        services.AddTransient<ReportsViewModel>();
 
         // Views
         services.AddTransient<LoginWindow>();

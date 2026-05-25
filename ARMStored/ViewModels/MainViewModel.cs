@@ -1,8 +1,8 @@
-using Microsoft.Extensions.DependencyInjection;
 using System.Windows;
 using System.Windows.Input;
 using ARMStored.Services;
 using ARMStored.Views;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ARMStored.ViewModels;
 
@@ -34,6 +34,7 @@ public class MainViewModel : BaseViewModel
 
     public ICommand ShowProductsCommand { get; }
     public ICommand ShowOperationsCommand { get; }
+    public ICommand ShowReportsCommand { get; }
     public ICommand LogoutCommand { get; }
 
     public MainViewModel()
@@ -41,12 +42,11 @@ public class MainViewModel : BaseViewModel
         UserName = AuthService.CurrentUser?.FullName ?? "Неизвестный";
         UserRole = AuthService.CurrentUser?.Role == "admin" ? "Администратор" : "Кладовщик";
 
-        // Создаём UserControl напрямую, а не ViewModel
         ShowProductsCommand = new RelayCommand(_ => ShowProducts());
         ShowOperationsCommand = new RelayCommand(_ => ShowOperations());
+        ShowReportsCommand = new RelayCommand(_ => ShowReports());
         LogoutCommand = new RelayCommand(_ => ExecuteLogout());
 
-        // Показываем страницу товаров по умолчанию
         ShowProducts();
     }
 
@@ -61,6 +61,13 @@ public class MainViewModel : BaseViewModel
     {
         var page = new WarehouseOperationsPage();
         page.DataContext = App.ServiceProvider.GetRequiredService<WarehouseOperationsViewModel>();
+        CurrentView = page;
+    }
+
+    private void ShowReports()
+    {
+        var page = new ReportsPage();
+        page.DataContext = App.ServiceProvider.GetRequiredService<ReportsViewModel>();
         CurrentView = page;
     }
 

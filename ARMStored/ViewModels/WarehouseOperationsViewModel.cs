@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using ARMStored.Models;
 using ARMStored.Services;
+using ARMStored.Views;
 
 namespace ARMStored.ViewModels;
 
@@ -11,10 +12,9 @@ public class WarehouseOperationsViewModel : BaseViewModel
     private ObservableCollection<WarehouseOperation> _operations = new();
     private ObservableCollection<Product> _products = new();
     private WarehouseOperation? _selectedOperation;
-    private WarehouseOperation? _newOperation;
-    private bool _isAdding;
     private DateTime _filterFrom;
     private DateTime _filterTo;
+    private int? _selectedOperationType;
 
     public ObservableCollection<WarehouseOperation> Operations
     {
@@ -32,18 +32,6 @@ public class WarehouseOperationsViewModel : BaseViewModel
     {
         get => _selectedOperation;
         set => SetProperty(ref _selectedOperation, value);
-    }
-
-    public WarehouseOperation? NewOperation
-    {
-        get => _newOperation;
-        set => SetProperty(ref _newOperation, value);
-    }
-
-    public bool IsAdding
-    {
-        get => _isAdding;
-        set => SetProperty(ref _isAdding, value);
     }
 
     public DateTime FilterFrom
@@ -66,11 +54,26 @@ public class WarehouseOperationsViewModel : BaseViewModel
         }
     }
 
-    public Array OperationTypes => Enum.GetValues(typeof(OperationType));
+    public int? SelectedOperationType
+    {
+        get => _selectedOperationType;
+        set
+        {
+            SetProperty(ref _selectedOperationType, value);
+            LoadOperations();
+        }
+    }
+
+    public Array OperationTypes => new[] 
+    { 
+        new { Value = (int?)null, Name = "Все типы" },
+        new { Value = (int?)1, Name = "Приход" },
+        new { Value = (int?)2, Name = "Расход" },
+        new { Value = (int?)3, Name = "Перемещение" },
+        new { Value = (int?)4, Name = "Списание" }
+    };
 
     public ICommand AddOperationCommand { get; }
-    public ICommand SaveOperationCommand { get; }
-    public ICommand CancelCommand { get; }
     public ICommand RefreshCommand { get; }
 
     private readonly DatabaseService _dbService;
@@ -82,8 +85,6 @@ public class WarehouseOperationsViewModel : BaseViewModel
         FilterTo = DateTime.Now;
 
         AddOperationCommand = new RelayCommand(_ => ExecuteAdd());
-        SaveOperationCommand = new RelayCommand(_ => ExecuteSave(), _ => CanSave());
-        CancelCommand = new RelayCommand(_ => ExecuteCancel());
         RefreshCommand = new RelayCommand(_ => LoadOperations());
 
         LoadProducts();
@@ -104,58 +105,31 @@ public class WarehouseOperationsViewModel : BaseViewModel
 
     private void ExecuteAdd()
     {
-        NewOperation = new WarehouseOperation
+        var newOperation = new WarehouseOperation
         {
             OperationDate = DateTime.Now,
             Type = OperationType.Incoming,
             UnitPrice = 0
         };
-        IsAdding = true;
-    }
 
-    private bool CanSave()
-    {
-        return NewOperation != null &&
-               NewOperation.ProductId > 0 &&
-               NewOperation.Quantity > 0 &&
-               NewOperation.UnitPrice >= 0;
-    }
+        var dialog = new OperationDialog(newOperation, Products.ToList());
+        dialog.Owner = Application.Current.MainWindow;
 
-    private void ExecuteSave()
-    {
-        try
+        if (dialog.ShowDialog() == true)
         {
-            var product = Products.FirstOrDefault(p => p.Id == NewOperation!.ProductId);
-            if (product == null)
+            try
             {
-                MessageBox.Show("Выберите товар!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
+                _dbService.AddOperation(dialog.Operation, AuthService.CurrentUser!.Id);
+                MessageBox.Show("✅ Операция выполнена успешно!", "Успех", 
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                LoadProducts();
+                LoadOperations();
             }
-
-            if ((NewOperation!.Type == OperationType.Outgoing || NewOperation.Type == OperationType.WriteOff)
-                && product.Quantity < NewOperation.Quantity)
+            catch (Exception ex)
             {
-                MessageBox.Show($"Недостаточно товара на складе! Доступно: {product.Quantity}",
-                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
+                MessageBox.Show($"❌ Ошибка: {ex.Message}", "Ошибка", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
             }
-
-            _dbService.AddOperation(NewOperation, AuthService.CurrentUser!.Id);
-            MessageBox.Show("✅ Операция выполнена успешно!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-
-            IsAdding = false;
-            LoadProducts();
-            LoadOperations();
         }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"❌ Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private void ExecuteCancel()
-    {
-        IsAdding = false;
-        NewOperation = null;
     }
 }
