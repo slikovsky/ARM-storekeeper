@@ -1,7 +1,7 @@
 # admin admin123
 # storekeeper store123
 # Структура проекта
-ARM-StoreKeeper/
+ARM-StoreKeeper/  
 ├--ARMStored/
 |  ├--bin/
 |  |  └--Debug/
