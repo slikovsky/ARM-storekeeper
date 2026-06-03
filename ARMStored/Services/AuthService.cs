@@ -25,7 +25,7 @@ public class AuthService
             return true;
         }
 
-        if (password == "store123" && username == "storekeeper")
+        if (password == "store123" && username == "store")
         {
             _currentUser = user;
             _dbService.UpdateLastLogin(user.Id);
