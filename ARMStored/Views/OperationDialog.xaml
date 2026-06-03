@@ -27,6 +27,8 @@
             <TextBlock Text="Тип операции *" FontSize="12" Foreground="#FF666666" Margin="0,0,0,5"/>
             <ComboBox ItemsSource="{Binding OperationTypes}"
                       SelectedItem="{Binding SelectedOperationType}"
+                      DisplayMemberPath="Name"
+                      SelectedValuePath="Value"
                       Height="40" 
                       FontSize="14"
                       Background="White"

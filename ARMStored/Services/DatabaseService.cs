@@ -1,7 +1,8 @@
-using System.Data;
+using ARMStored.Models;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
-using ARMStored.Models;
+using System.Data;
+using System.Windows.Documents;
 
 namespace ARMStored.Services;
 
@@ -11,14 +12,14 @@ public class DatabaseService
 
     public DatabaseService(IConfiguration configuration)
     {
-        _connectionString = configuration.GetConnectionString("PostgresConnection") 
+        _connectionString = configuration.GetConnectionString("PostgresConnection")
             ?? throw new InvalidOperationException("Строка подключения не найдена");
     }
 
     public NpgsqlConnection GetConnection() => new(_connectionString);
 
     // ==================== ПОЛЬЗОВАТЕЛИ ====================
-    
+
     public User? GetUserByUsername(string username)
     {
         using var conn = GetConnection();
@@ -27,7 +28,7 @@ public class DatabaseService
             "SELECT id, username, password_hash, full_name, \"role\", is_active, created_at, last_login " +
             "FROM users WHERE username = @username AND is_active = true", conn);
         cmd.Parameters.AddWithValue("@username", username);
-        
+
         using var reader = cmd.ExecuteReader();
         if (reader.Read())
         {
@@ -37,7 +38,7 @@ public class DatabaseService
                 Username = reader.GetString(1),
                 PasswordHash = reader.GetString(2),
                 FullName = reader.GetString(3),
-                Role = reader.GetString(4),  // "role" в кавычках в SQL
+                Role = reader.GetString(4),
                 IsActive = reader.GetBoolean(5),
                 CreatedAt = reader.GetDateTime(6),
                 LastLogin = reader.IsDBNull(7) ? null : reader.GetDateTime(7)
@@ -58,19 +59,26 @@ public class DatabaseService
 
     // ==================== ТОВАРЫ ====================
 
-    public List<Product> GetAllProducts()
+    public List<Product> GetAllProducts(bool includeDeleted = false)
     {
         var products = new List<Product>();
         using var conn = GetConnection();
         conn.Open();
-        using var cmd = new NpgsqlCommand(@"
+
+        var sql = @"
             SELECT p.id, p.name, p.article, p.barcode, p.category_id, c.name as category_name,
                    p.supplier_id, s.name as supplier_name, p.price, p.quantity, 
-                   p.min_quantity, p.unit, p.description, p.created_at, p.updated_at
+                   p.min_quantity, p.unit, p.description, p.created_at, p.updated_at, p.is_deleted
             FROM products p
             LEFT JOIN categories c ON p.category_id = c.id
-            LEFT JOIN suppliers s ON p.supplier_id = s.id
-            ORDER BY p.name", conn);
+            LEFT JOIN suppliers s ON p.supplier_id = s.id";
+
+        if (!includeDeleted)
+            sql += " WHERE p.is_deleted = FALSE";
+
+        sql += " ORDER BY p.name";
+
+        using var cmd = new NpgsqlCommand(sql, conn);
 
         using var reader = cmd.ExecuteReader();
         while (reader.Read())
@@ -91,10 +99,54 @@ public class DatabaseService
                 Unit = reader.GetString(11),
                 Description = reader.IsDBNull(12) ? null : reader.GetString(12),
                 CreatedAt = reader.GetDateTime(13),
-                UpdatedAt = reader.GetDateTime(14)
+                UpdatedAt = reader.GetDateTime(14),
+                IsDeleted = reader.GetBoolean(15)
             });
         }
         return products;
+    }
+
+    public Product? GetProductByArticle(string article)
+    {
+        if (string.IsNullOrEmpty(article)) return null;
+
+        using var conn = GetConnection();
+        conn.Open();
+        using var cmd = new NpgsqlCommand(@"
+            SELECT p.id, p.name, p.article, p.barcode, p.category_id, c.name as category_name,
+                   p.supplier_id, s.name as supplier_name, p.price, p.quantity, 
+                   p.min_quantity, p.unit, p.description, p.created_at, p.updated_at, p.is_deleted
+            FROM products p
+            LEFT JOIN categories c ON p.category_id = c.id
+            LEFT JOIN suppliers s ON p.supplier_id = s.id
+            WHERE p.article = @article", conn);
+
+        cmd.Parameters.AddWithValue("@article", article);
+
+        using var reader = cmd.ExecuteReader();
+        if (reader.Read())
+        {
+            return new Product
+            {
+                Id = reader.GetInt32(0),
+                Name = reader.GetString(1),
+                Article = reader.IsDBNull(2) ? null : reader.GetString(2),
+                Barcode = reader.IsDBNull(3) ? null : reader.GetString(3),
+                CategoryId = reader.GetInt32(4),
+                CategoryName = reader.IsDBNull(5) ? "" : reader.GetString(5),
+                SupplierId = reader.GetInt32(6),
+                SupplierName = reader.IsDBNull(7) ? "" : reader.GetString(7),
+                Price = reader.GetDecimal(8),
+                Quantity = reader.GetInt32(9),
+                MinQuantity = reader.GetInt32(10),
+                Unit = reader.GetString(11),
+                Description = reader.IsDBNull(12) ? null : reader.GetString(12),
+                CreatedAt = reader.GetDateTime(13),
+                UpdatedAt = reader.GetDateTime(14),
+                IsDeleted = reader.GetBoolean(15)
+            };
+        }
+        return null;
     }
 
     public void AddProduct(Product product)
@@ -103,10 +155,36 @@ public class DatabaseService
         conn.Open();
         using var cmd = new NpgsqlCommand(@"
             INSERT INTO products (name, article, barcode, category_id, supplier_id, price, 
-                                 quantity, min_quantity, unit, description, created_at, updated_at)
+                                 quantity, min_quantity, unit, description, created_at, updated_at, is_deleted)
             VALUES (@name, @article, @barcode, @category_id, @supplier_id, @price,
-                    @quantity, @min_quantity, @unit, @description, NOW(), NOW())", conn);
+                    @quantity, @min_quantity, @unit, @description, NOW(), NOW(), FALSE)", conn);
 
+        cmd.Parameters.AddWithValue("@name", product.Name);
+        cmd.Parameters.AddWithValue("@article", string.IsNullOrEmpty(product.Article) ? DBNull.Value : product.Article);
+        cmd.Parameters.AddWithValue("@barcode", string.IsNullOrEmpty(product.Barcode) ? DBNull.Value : product.Barcode);
+        cmd.Parameters.AddWithValue("@category_id", product.CategoryId);
+        cmd.Parameters.AddWithValue("@supplier_id", product.SupplierId);
+        cmd.Parameters.AddWithValue("@price", product.Price);
+        cmd.Parameters.AddWithValue("@quantity", product.Quantity);
+        cmd.Parameters.AddWithValue("@min_quantity", product.MinQuantity);
+        cmd.Parameters.AddWithValue("@unit", product.Unit);
+        cmd.Parameters.AddWithValue("@description", string.IsNullOrEmpty(product.Description) ? DBNull.Value : product.Description);
+        cmd.ExecuteNonQuery();
+    }
+
+    public void RestoreProduct(Product product)
+    {
+        using var conn = GetConnection();
+        conn.Open();
+        using var cmd = new NpgsqlCommand(@"
+            UPDATE products 
+            SET name = @name, article = @article, barcode = @barcode, category_id = @category_id,
+                supplier_id = @supplier_id, price = @price, quantity = @quantity,
+                min_quantity = @min_quantity, unit = @unit, description = @description, 
+                updated_at = NOW(), is_deleted = FALSE
+            WHERE id = @id", conn);
+
+        cmd.Parameters.AddWithValue("@id", product.Id);
         cmd.Parameters.AddWithValue("@name", product.Name);
         cmd.Parameters.AddWithValue("@article", string.IsNullOrEmpty(product.Article) ? DBNull.Value : product.Article);
         cmd.Parameters.AddWithValue("@barcode", string.IsNullOrEmpty(product.Barcode) ? DBNull.Value : product.Barcode);
@@ -149,7 +227,8 @@ public class DatabaseService
     {
         using var conn = GetConnection();
         conn.Open();
-        using var cmd = new NpgsqlCommand("DELETE FROM products WHERE id = @id", conn);
+        using var cmd = new NpgsqlCommand(
+            "UPDATE products SET is_deleted = TRUE, updated_at = NOW() WHERE id = @id", conn);
         cmd.Parameters.AddWithValue("@id", productId);
         cmd.ExecuteNonQuery();
     }
@@ -158,7 +237,7 @@ public class DatabaseService
 
     public List<Category> GetAllCategories()
     {
-        var categories = new List<Category>();
+        var categories = new List< Category > ();
         using var conn = GetConnection();
         conn.Open();
         using var cmd = new NpgsqlCommand("SELECT id, name, description FROM categories ORDER BY name", conn);
@@ -180,7 +259,7 @@ public class DatabaseService
 
     public List<Supplier> GetAllSuppliers()
     {
-        var suppliers = new List<Supplier>();
+        var suppliers = new List< Supplier > ();
         using var conn = GetConnection();
         conn.Open();
         using var cmd = new NpgsqlCommand("SELECT id, name, contact_person, phone, email, address FROM suppliers ORDER BY name", conn);
@@ -205,7 +284,7 @@ public class DatabaseService
 
     public List<WarehouseOperation> GetAllOperations()
     {
-        var operations = new List<WarehouseOperation>();
+        var operations = new List< WarehouseOperation > ();
         using var conn = GetConnection();
         conn.Open();
 
@@ -224,7 +303,7 @@ public class DatabaseService
             operations.Add(new WarehouseOperation
             {
                 Id = reader.GetInt32(0),
-                Type = (OperationType)reader.GetInt32(1),  // Теперь читаем напрямую как int
+                Type = (OperationType)reader.GetInt32(1),
                 ProductId = reader.GetInt32(2),
                 ProductName = reader.GetString(3),
                 Quantity = reader.GetInt32(4),
@@ -261,7 +340,7 @@ public class DatabaseService
             cmd.Parameters.AddWithValue("@notes", string.IsNullOrEmpty(operation.Notes) ? DBNull.Value : operation.Notes);
             operation.Id = (int)(cmd.ExecuteScalar() ?? 0);
 
-            string updateQuery = operation.Type == OperationType.Incoming 
+            string updateQuery = operation.Type == OperationType.Incoming
                 ? "UPDATE products SET quantity = quantity + @qty, updated_at = NOW() WHERE id = @id"
                 : "UPDATE products SET quantity = quantity - @qty, updated_at = NOW() WHERE id = @id";
 
@@ -289,7 +368,7 @@ public class DatabaseService
             SELECT p.name, p.quantity, p.min_quantity, c.name as category
             FROM products p
             LEFT JOIN categories c ON p.category_id = c.id
-            WHERE p.quantity <= p.min_quantity
+            WHERE p.quantity <= p.min_quantity AND p.is_deleted = FALSE
             ORDER BY p.quantity ASC", conn);
 
         var dt = new DataTable();

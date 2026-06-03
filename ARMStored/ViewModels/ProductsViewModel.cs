@@ -10,8 +10,8 @@ namespace ARMStored.ViewModels;
 public class ProductsViewModel : BaseViewModel
 {
     private ObservableCollection<Product> _products = new();
-    private ObservableCollection<Category> _categories = new();
-    private ObservableCollection<Supplier> _suppliers = new();
+    private ObservableCollection<Category> _categories = new ();
+    private ObservableCollection<Supplier> _suppliers = new ();
     private Product? _selectedProduct;
     private string _searchText = string.Empty;
 
@@ -75,8 +75,8 @@ public class ProductsViewModel : BaseViewModel
     {
         _allProducts = _dbService.GetAllProducts();
         Products = new ObservableCollection<Product>(_allProducts);
-        Categories = new ObservableCollection<Category>(_dbService.GetAllCategories());
-        Suppliers = new ObservableCollection<Supplier>(_dbService.GetAllSuppliers());
+        Categories = new ObservableCollection< Category > (_dbService.GetAllCategories());
+        Suppliers = new ObservableCollection< Supplier > (_dbService.GetAllSuppliers());
         SelectedProduct = null;
     }
 
@@ -88,7 +88,7 @@ public class ProductsViewModel : BaseViewModel
         }
         else
         {
-            var filtered = _allProducts.Where(p => 
+            var filtered = _allProducts.Where(p =>
                 p.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
                 (p.Article?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (p.Barcode?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
@@ -117,14 +117,55 @@ public class ProductsViewModel : BaseViewModel
         {
             try
             {
-                _dbService.AddProduct(dialog.Product);
-                MessageBox.Show("✅ Товар успешно добавлен!", "Успех", 
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                // Проверяем, есть ли товар с таким артикулом (включая удалённые)
+                if (!string.IsNullOrEmpty(dialog.Product.Article))
+                {
+                    var existingProduct = _dbService.GetProductByArticle(dialog.Product.Article);
+                    if (existingProduct != null)
+                    {
+                        if (existingProduct.IsDeleted)
+                        {
+                            // Восстанавливаем удалённый товар
+                            existingProduct.Name = dialog.Product.Name;
+                            existingProduct.Barcode = dialog.Product.Barcode;
+                            existingProduct.CategoryId = dialog.Product.CategoryId;
+                            existingProduct.SupplierId = dialog.Product.SupplierId;
+                            existingProduct.Price = dialog.Product.Price;
+                            existingProduct.Quantity = dialog.Product.Quantity;
+                            existingProduct.MinQuantity = dialog.Product.MinQuantity;
+                            existingProduct.Unit = dialog.Product.Unit;
+                            existingProduct.Description = dialog.Product.Description;
+
+                            _dbService.RestoreProduct(existingProduct);
+                            MessageBox.Show("✅ Товар восстановлен с сохранением истории операций!", "Успех",
+                                MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
+                        else
+                        {
+                            MessageBox.Show($"❌ Товар с артикулом '{dialog.Product.Article}' уже существует!", "Ошибка",
+                                MessageBoxButton.OK, MessageBoxImage.Warning);
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        _dbService.AddProduct(dialog.Product);
+                        MessageBox.Show("✅ Товар успешно добавлен!", "Успех",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                }
+                else
+                {
+                    _dbService.AddProduct(dialog.Product);
+                    MessageBox.Show("✅ Товар успешно добавлен!", "Успех",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+
                 LoadData();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"❌ Ошибка: {ex.Message}", "Ошибка", 
+                MessageBox.Show($"❌ Ошибка: {ex.Message}", "Ошибка",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -134,7 +175,6 @@ public class ProductsViewModel : BaseViewModel
     {
         if (SelectedProduct == null) return;
 
-        // Создаём копию для редактирования
         var editProduct = new Product
         {
             Id = SelectedProduct.Id,
@@ -160,13 +200,13 @@ public class ProductsViewModel : BaseViewModel
             try
             {
                 _dbService.UpdateProduct(dialog.Product);
-                MessageBox.Show("✅ Товар успешно обновлён!", "Успех", 
+                MessageBox.Show("✅ Товар успешно обновлён!", "Успех",
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 LoadData();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"❌ Ошибка: {ex.Message}", "Ошибка", 
+                MessageBox.Show($"❌ Ошибка: {ex.Message}", "Ошибка",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -176,19 +216,19 @@ public class ProductsViewModel : BaseViewModel
     {
         if (SelectedProduct == null) return;
 
-        if (MessageBox.Show($"Удалить товар '{SelectedProduct.Name}'?", "Подтверждение", 
+        if (MessageBox.Show($"Удалить товар '{SelectedProduct.Name}'?\n\nИстория операций будет сохранена. Товар можно восстановить, добавив его снова с тем же артикулом.", "Подтверждение",
             MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
         {
             try
             {
                 _dbService.DeleteProduct(SelectedProduct.Id);
-                MessageBox.Show("✅ Товар удалён!", "Успех", 
+                MessageBox.Show("✅ Товар удалён. История операций сохранена.\n\nДля восстановления добавьте товар с тем же артикулом.", "Успех",
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 LoadData();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"❌ Ошибка: {ex.Message}", "Ошибка", 
+                MessageBox.Show($"❌ Ошибка: {ex.Message}", "Ошибка",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }

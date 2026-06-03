@@ -85,8 +85,8 @@ public class ReportsViewModel : BaseViewModel
         set => SetProperty(ref _statusMessage, value);
     }
 
-    public Array OperationTypes => new[] 
-    { 
+    public Array OperationTypes => new[]
+    {
         new { Value = (int?)null, Name = "Все типы" },
         new { Value = (int?)1, Name = "📥 Приход" },
         new { Value = (int?)2, Name = "📤 Расход" },
@@ -96,7 +96,7 @@ public class ReportsViewModel : BaseViewModel
 
     public ICommand RefreshCommand { get; }
     public ICommand ExportCsvCommand { get; }
-    public ICommand PrintCommand { get; }
+    public ICommand ExportExcelCommand { get; }
 
     private readonly ReportService _reportService;
 
@@ -109,7 +109,7 @@ public class ReportsViewModel : BaseViewModel
 
         RefreshCommand = new RelayCommand(_ => LoadCurrentReport());
         ExportCsvCommand = new RelayCommand(_ => ExportToCsv(), _ => CanExport());
-        PrintCommand = new RelayCommand(_ => PrintReport());
+        ExportExcelCommand = new RelayCommand(_ => ExportToExcel(), _ => CanExport());
 
         LoadCurrentReport();
     }
@@ -186,16 +186,8 @@ public class ReportsViewModel : BaseViewModel
             DefaultExt = "csv"
         };
 
-        string reportName;
-        switch (SelectedReportIndex)
-        {
-            case 0: reportName = "Остатки"; break;
-            case 1: reportName = "Обороты"; break;
-            case 2: reportName = "Операции"; break;
-            default: reportName = "Отчет"; break;
-        }
-
-        dialog.FileName = _reportService.GetDefaultFileName(reportName);
+        string reportName = GetReportName();
+        dialog.FileName = _reportService.GetDefaultFileName(reportName, "csv");
 
         if (dialog.ShowDialog() == true)
         {
@@ -208,20 +200,66 @@ public class ReportsViewModel : BaseViewModel
                     case 2: _reportService.ExportToCsv(OperationsReport.ToList(), dialog.FileName); break;
                 }
                 StatusMessage = $"✅ Сохранено: {dialog.FileName}";
-                MessageBox.Show("Отчёт успешно экспортирован в CSV!", "Экспорт завершён", 
+                MessageBox.Show("Отчёт успешно экспортирован в CSV!", "Экспорт завершён",
                     MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при сохранении: {ex.Message}", "Ошибка", 
+                MessageBox.Show($"Ошибка при сохранении: {ex.Message}", "Ошибка",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }
 
-    private void PrintReport()
+    private void ExportToExcel()
     {
-        MessageBox.Show("Функция печати будет реализована в следующей версии.", 
-            "Печать", MessageBoxButton.OK, MessageBoxImage.Information);
+        var dialog = new SaveFileDialog
+        {
+            Filter = "Excel файлы (*.xlsx)|*.xlsx|Все файлы (*.*)|*.*",
+            DefaultExt = "xlsx"
+        };
+
+        string reportName = GetReportName();
+        dialog.FileName = _reportService.GetDefaultFileName(reportName, "xlsx");
+
+        if (dialog.ShowDialog() == true)
+        {
+            try
+            {
+                string sheetName = SelectedReportIndex switch
+                {
+                    0 => "Остатки на складе",
+                    1 => "Оборот товаров",
+                    2 => "Журнал операций",
+                    _ => "Отчёт"
+                };
+
+                switch (SelectedReportIndex)
+                {
+                    case 0: _reportService.ExportToExcel(StockReport.ToList(), dialog.FileName, sheetName); break;
+                    case 1: _reportService.ExportToExcel(TurnoverReport.ToList(), dialog.FileName, sheetName); break;
+                    case 2: _reportService.ExportToExcel(OperationsReport.ToList(), dialog.FileName, sheetName); break;
+                }
+                StatusMessage = $"✅ Сохранено: {dialog.FileName}";
+                MessageBox.Show("Отчёт успешно экспортирован в Excel!", "Экспорт завершён",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при сохранении: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    private string GetReportName()
+    {
+        return SelectedReportIndex switch
+        {
+            0 => "Остатки",
+            1 => "Обороты",
+            2 => "Операции",
+            _ => "Отчет"
+        };
     }
 }

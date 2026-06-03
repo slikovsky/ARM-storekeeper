@@ -8,6 +8,9 @@ public partial class ReportsPage : UserControl
     public ReportsPage()
     {
         InitializeComponent();
+
+        // Устанавливаем начальное состояние после инициализации компонентов
+        SetStockReportState();
     }
 
     private void StockReport_Checked(object sender, RoutedEventArgs e)
@@ -15,10 +18,7 @@ public partial class ReportsPage : UserControl
         if (DataContext is ViewModels.ReportsViewModel vm)
             vm.SelectedReportIndex = 0;
 
-        StockDataGrid.Visibility = Visibility.Visible;
-        TurnoverDataGrid.Visibility = Visibility.Collapsed;
-        OperationsDataGrid.Visibility = Visibility.Collapsed;
-        OperationTypeFilterPanel.Visibility = Visibility.Collapsed; // Скрываем фильтр типа операции
+        SetStockReportState();
     }
 
     private void TurnoverReport_Checked(object sender, RoutedEventArgs e)
@@ -29,7 +29,8 @@ public partial class ReportsPage : UserControl
         StockDataGrid.Visibility = Visibility.Collapsed;
         TurnoverDataGrid.Visibility = Visibility.Visible;
         OperationsDataGrid.Visibility = Visibility.Collapsed;
-        OperationTypeFilterPanel.Visibility = Visibility.Collapsed; // Скрываем фильтр типа операции
+        OperationTypeFilterPanel.Visibility = Visibility.Collapsed;
+        DateFilterPanel.Visibility = Visibility.Collapsed;
     }
 
     private void OperationsReport_Checked(object sender, RoutedEventArgs e)
@@ -40,6 +41,16 @@ public partial class ReportsPage : UserControl
         StockDataGrid.Visibility = Visibility.Collapsed;
         TurnoverDataGrid.Visibility = Visibility.Collapsed;
         OperationsDataGrid.Visibility = Visibility.Visible;
-        OperationTypeFilterPanel.Visibility = Visibility.Visible; // Показываем фильтр типа операции
+        OperationTypeFilterPanel.Visibility = Visibility.Visible;
+        DateFilterPanel.Visibility = Visibility.Visible;
+    }
+
+    private void SetStockReportState()
+    {
+        StockDataGrid.Visibility = Visibility.Visible;
+        TurnoverDataGrid.Visibility = Visibility.Collapsed;
+        OperationsDataGrid.Visibility = Visibility.Collapsed;
+        OperationTypeFilterPanel.Visibility = Visibility.Collapsed;
+        DateFilterPanel.Visibility = Visibility.Collapsed;
     }
 }

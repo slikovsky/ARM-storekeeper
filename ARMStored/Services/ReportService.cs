@@ -1,9 +1,12 @@
 using System.Data;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
 using ARMStored.Models;
 
 namespace ARMStored.Services;
@@ -159,10 +162,8 @@ public class ReportService
         var sb = new StringBuilder();
         var properties = typeof(T).GetProperties();
 
-        // Заголовки
         sb.AppendLine(string.Join(";", properties.Select(p => p.Name)));
 
-        // Данные
         foreach (var item in data)
         {
             var values = properties.Select(p =>
@@ -171,8 +172,6 @@ public class ReportService
                 if (value == null) return "";
 
                 var str = value.ToString() ?? "";
-
-                // Экранируем спецсимволы CSV
                 bool needsQuotes = str.Contains(';') || str.Contains('"') || str.Contains('\n') || str.Contains('\r');
 
                 if (str.Contains('"'))
@@ -182,11 +181,8 @@ public class ReportService
                 }
 
                 if (needsQuotes)
-                {
                     str = "\"" + str + "\"";
-                }
 
-                // Формат чисел с точкой для Excel
                 if (value is decimal dec)
                     return dec.ToString("F2", CultureInfo.InvariantCulture);
 
@@ -208,8 +204,97 @@ public class ReportService
         File.WriteAllText(filePath, sb.ToString(), Encoding.UTF8);
     }
 
-    public string GetDefaultFileName(string reportName)
+    // ==================== ЭКСПОРТ В EXCEL (.xlsx) ====================
+    public void ExportToExcel<T>(List<T> data, string filePath, string sheetName = "Отчёт")
     {
-        return $"{reportName}_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+        if (data == null || data.Count == 0) return;
+
+        // Настройка лицензии EPPlus (для некоммерческого использования)
+        ExcelPackage.License.SetNonCommercialPersonal("My Name");
+
+        using var package = new ExcelPackage();
+        var worksheet = package.Workbook.Worksheets.Add(sheetName);
+
+        var properties = typeof(T).GetProperties();
+
+        // Заголовки (строка 1)
+        for (int i = 0; i < properties.Length; i++)
+        {
+            var cell = worksheet.Cells[1, i + 1];
+            cell.Value = properties[i].Name;
+            cell.Style.Font.Bold = true;
+            cell.Style.Font.Color.SetColor(System.Drawing.Color.White);
+            cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+            cell.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(40, 53, 147)); // #283593
+            cell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+            cell.Style.VerticalAlignment = ExcelVerticalAlignment.Center;
+            cell.Style.Border.BorderAround(OfficeOpenXml.Style.ExcelBorderStyle.Thin);
+        }
+
+        // Данные
+        for (int row = 0; row < data.Count; row++)
+        {
+            for (int col = 0; col < properties.Length; col++)
+            {
+                var cell = worksheet.Cells[row + 2, col + 1];
+                var value = properties[col].GetValue(data[row]);
+
+                if (value == null)
+                {
+                    cell.Value = "";
+                }
+                else if (value is DateTime dt)
+                {
+                    cell.Value = dt;
+                    cell.Style.Numberformat.Format = "dd.MM.yyyy HH:mm";
+                }
+                else if (value is decimal dec)
+                {
+                    cell.Value = dec;
+                    cell.Style.Numberformat.Format = "#,##0.00 ₽";
+                }
+                else if (value is double dbl)
+                {
+                    cell.Value = dbl;
+                    cell.Style.Numberformat.Format = "#,##0.00";
+                }
+                else if (value is int intVal)
+                {
+                    cell.Value = intVal;
+                }
+                else if (value is long longVal)
+                {
+                    cell.Value = longVal;
+                }
+                else
+                {
+                    cell.Value = value.ToString();
+                }
+
+                // Чередование фона строк
+                if (row % 2 == 1)
+                {
+                    cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    cell.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(245, 245, 245)); // #F5F5F5
+                }
+
+                cell.Style.Border.BorderAround(OfficeOpenXml.Style.ExcelBorderStyle.Thin);
+                cell.Style.VerticalAlignment = ExcelVerticalAlignment.Center;
+            }
+        }
+
+        // Автоширина столбцов
+        worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+
+        // Заморозка заголовка
+        worksheet.View.FreezePanes(2, 1);
+
+        // Сохранение
+        package.SaveAs(new FileInfo(filePath));
+    }
+
+    public string GetDefaultFileName(string reportName, string extension = "csv")
+    {
+        return $"{reportName}_{DateTime.Now:yyyyMMdd_HHmmss}.{extension}";
     }
 }

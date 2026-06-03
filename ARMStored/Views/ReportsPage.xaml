@@ -15,8 +15,13 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <!-- фильтры -->
             <RowDefinition Height="Auto"/>
+            <!-- кнопки (НОВАЯ) -->
+            <RowDefinition Height="*"/>
+            <!-- таблица (было 3, стало 4) -->
+            <RowDefinition Height="Auto"/>
+            <!-- статус (было 4, стало 5) -->
         </Grid.RowDefinitions>
 
         <!-- Заголовок -->
@@ -65,8 +70,9 @@
             </StackPanel>
         </Border>
 
-        <!-- Панель фильтров -->
-        <Border Grid.Row="2" 
+        <!-- Панель фильтров (дата + тип операции) — только для Журнала операций -->
+        <Border x:Name="DateFilterPanel"
+                Grid.Row="2" 
                 Background="White" 
                 CornerRadius="12" 
                 Padding="20" 
@@ -77,7 +83,6 @@
 
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
@@ -113,72 +118,84 @@
                               Height="35"
                               FontSize="13"/>
                 </StackPanel>
-
-                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Bottom">
-                    <Button Content="🔄 Обновить" 
-                            Command="{Binding RefreshCommand}"
-                            Height="35"
-                            Padding="15,0"
-                            Background="#FF2196F3"
-                            Foreground="White"
-                            BorderThickness="0"
-                            Margin="0,0,10,0"
-                            Cursor="Hand">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border Background="{TemplateBinding Background}" 
-                                        CornerRadius="6"
-                                        Padding="{TemplateBinding Padding}">
-                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
-
-                    <Button Content="📥 CSV" 
-                            Command="{Binding ExportCsvCommand}"
-                            Height="35"
-                            Padding="15,0"
-                            Background="#FF4CAF50"
-                            Foreground="White"
-                            BorderThickness="0"
-                            Margin="0,0,10,0"
-                            Cursor="Hand">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border Background="{TemplateBinding Background}" 
-                                        CornerRadius="6"
-                                        Padding="{TemplateBinding Padding}">
-                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
-
-                    <Button Content="🖨️ Печать" 
-                            Command="{Binding PrintCommand}"
-                            Height="35"
-                            Padding="15,0"
-                            Background="#FF757575"
-                            Foreground="White"
-                            BorderThickness="0"
-                            Cursor="Hand">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border Background="{TemplateBinding Background}" 
-                                        CornerRadius="6"
-                                        Padding="{TemplateBinding Padding}">
-                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
-                </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Таблица отчёта -->
+        <!-- Панель кнопок -->
         <Border Grid.Row="3" 
+                Background="White" 
+                CornerRadius="12" 
+                Padding="15,12" 
+                Margin="0,0,0,15">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.08"/>
+            </Border.Effect>
+
+            <StackPanel Orientation="Horizontal">
+                <Button Content="🔄 Обновить" 
+                        Command="{Binding RefreshCommand}"
+                        Height="35"
+                        Padding="15,0"
+                        Background="#FF2196F3"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Margin="0,0,10,0"
+                        Cursor="Hand">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" 
+                                    CornerRadius="6"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+
+                <Button Content="📥 CSV" 
+                        Command="{Binding ExportCsvCommand}"
+                        Height="35"
+                        Padding="15,0"
+                        Margin="0,0,10,0"
+                        Background="#FF4CAF50"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Cursor="Hand">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" 
+                                    CornerRadius="6"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+
+                <Button Content="📊 Excel" 
+                        Command="{Binding ExportExcelCommand}"
+                        Height="35"
+                        Padding="15,0"
+                        Background="#FF2E7D32"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Margin="0,0,10,0"
+                        Cursor="Hand">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" 
+                                    CornerRadius="6"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </StackPanel>
+        </Border>
+
+        <!-- Таблица отчёта -->
+        <Border Grid.Row="4" 
                 Background="White" 
                 CornerRadius="12"
                 Padding="15">
@@ -284,7 +301,7 @@
         </Border>
 
         <!-- Статусная строка -->
-        <Border Grid.Row="4" 
+        <Border Grid.Row="5" 
                 Background="#FFE8F5E9" 
                 CornerRadius="8" 
                 Padding="12,8" 

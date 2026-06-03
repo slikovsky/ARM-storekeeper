@@ -17,7 +17,8 @@ public class Product
     public string? Description { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
-    
+    public bool IsDeleted { get; set; } = false;
+
     public string Status => Quantity <= MinQuantity ? "⚠️ Низкий запас" : "✅ В наличии";
     public string StatusColor => Quantity <= MinQuantity ? "#FFFF6B6B" : "#FF51CF66";
 }

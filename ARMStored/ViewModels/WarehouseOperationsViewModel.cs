@@ -64,8 +64,8 @@ public class WarehouseOperationsViewModel : BaseViewModel
         }
     }
 
-    public Array OperationTypes => new[] 
-    { 
+    public Array OperationTypes => new[]
+    {
         new { Value = (int?)null, Name = "Все типы" },
         new { Value = (int?)1, Name = "Приход" },
         new { Value = (int?)2, Name = "Расход" },
@@ -99,8 +99,19 @@ public class WarehouseOperationsViewModel : BaseViewModel
     private void LoadOperations()
     {
         var allOps = _dbService.GetAllOperations();
-        Operations = new ObservableCollection<WarehouseOperation>(
-            allOps.Where(o => o.OperationDate >= FilterFrom && o.OperationDate <= FilterTo));
+
+        // Фильтр по дате: FilterFrom с начала дня, FilterTo до конца дня
+        var filtered = allOps.Where(o =>
+            o.OperationDate >= FilterFrom.Date &&
+            o.OperationDate <= FilterTo.Date.AddDays(1).AddTicks(-1));
+
+        // Фильтр по типу операции (если выбран конкретный тип)
+        if (SelectedOperationType.HasValue)
+        {
+            filtered = filtered.Where(o => (int)o.Type == SelectedOperationType.Value);
+        }
+
+        Operations = new ObservableCollection<WarehouseOperation>(filtered);
     }
 
     private void ExecuteAdd()
@@ -120,14 +131,14 @@ public class WarehouseOperationsViewModel : BaseViewModel
             try
             {
                 _dbService.AddOperation(dialog.Operation, AuthService.CurrentUser!.Id);
-                MessageBox.Show("✅ Операция выполнена успешно!", "Успех", 
+                MessageBox.Show("✅ Операция выполнена успешно!", "Успех",
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 LoadProducts();
                 LoadOperations();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"❌ Ошибка: {ex.Message}", "Ошибка", 
+                MessageBox.Show($"❌ Ошибка: {ex.Message}", "Ошибка",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
