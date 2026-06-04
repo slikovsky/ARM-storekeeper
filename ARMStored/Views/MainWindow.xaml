@@ -93,6 +93,9 @@
                     <Button Content="📊 Отчёты" 
                             Style="{StaticResource NavButton}"
                             Command="{Binding ShowReportsCommand}"/>
+                    <Button Content="🗺️ Карта склада" 
+                            Style="{StaticResource NavButton}"
+                            Command="{Binding ShowWarehouseMapCommand}"/>
                 </StackPanel>
 
                 <!-- Инфо пользователя -->

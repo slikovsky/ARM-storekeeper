@@ -35,6 +35,7 @@ public class MainViewModel : BaseViewModel
     public ICommand ShowProductsCommand { get; }
     public ICommand ShowOperationsCommand { get; }
     public ICommand ShowReportsCommand { get; }
+    public ICommand ShowWarehouseMapCommand { get; }
     public ICommand LogoutCommand { get; }
 
     public MainViewModel()
@@ -45,6 +46,7 @@ public class MainViewModel : BaseViewModel
         ShowProductsCommand = new RelayCommand(_ => ShowProducts());
         ShowOperationsCommand = new RelayCommand(_ => ShowOperations());
         ShowReportsCommand = new RelayCommand(_ => ShowReports());
+        ShowWarehouseMapCommand = new RelayCommand(_ => CurrentView = new WarehouseMapPage());
         LogoutCommand = new RelayCommand(_ => ExecuteLogout());
 
         ShowProducts();
